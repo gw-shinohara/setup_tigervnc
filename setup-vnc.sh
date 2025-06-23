@@ -36,63 +36,53 @@ apt-get install -y xfce4 xfce4-goodies tigervnc-standalone-server ufw
 
 # --- 2. VNCパスワードの設定 ---
 echo -e "\n${GREEN}>>> ステップ2: VNCパスワードを設定します...${NC}"
-# ~/.vncディレクトリを作成
 mkdir -p "$USER_HOME/.vnc"
 chown -R "$RUNNING_USER:$RUNNING_USER" "$USER_HOME/.vnc"
-# suコマンドでユーザーになり、vncpasswdを実行
 echo -e "${YELLOW}VNC接続用のパスワードを設定してください（8文字以内推奨）。${NC}"
 su - "$RUNNING_USER" -c "vncpasswd"
 
 # --- 3. xstartupファイルの設定 ---
 echo -e "\n${GREEN}>>> ステップ3: VNC起動スクリプト (xstartup) を設定しています...${NC}"
+XSTARTUP_TEMPLATE="./templates/xstartup"
 XSTARTUP_PATH="$USER_HOME/.vnc/xstartup"
-cat <<'EOF' > "$XSTARTUP_PATH"
-#!/bin/sh
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup
-[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
-startxfce4 &
-EOF
 
-# 権限を設定
+if [ ! -f "$XSTARTUP_TEMPLATE" ]; then
+    echo -e "${RED}エラー: テンプレートファイルが見つかりません: ${XSTARTUP_TEMPLATE}${NC}"
+    exit 1
+fi
+
+cp "$XSTARTUP_TEMPLATE" "$XSTARTUP_PATH"
 chmod 755 "$XSTARTUP_PATH"
 chown "$RUNNING_USER:$RUNNING_USER" "$XSTARTUP_PATH"
+echo "xstartupファイルをコピーしました。"
+
 
 # --- 4. Systemdサービスファイルの作成 ---
 echo -e "\n${GREEN}>>> ステップ4: Systemdサービスを作成して自動起動を設定しています...${NC}"
+SERVICE_TEMPLATE="./templates/vncserver@.service"
 SERVICE_PATH="/etc/systemd/system/vncserver@.service"
-cat <<EOF > "$SERVICE_PATH"
-[Unit]
-Description=Start TigerVNC server at startup for %i
-After=syslog.target network.target
 
-[Service]
-Type=forking
-User=${RUNNING_USER}
-Group=${RUNNING_USER}
-WorkingDirectory=${USER_HOME}
+if [ ! -f "$SERVICE_TEMPLATE" ]; then
+    echo -e "${RED}エラー: テンプレートファイルが見つかりません: ${SERVICE_TEMPLATE}${NC}"
+    exit 1
+fi
 
-PIDFile=${USER_HOME}/.vnc/%H:%i.pid
-ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStart=/usr/bin/vncserver -depth 24 -geometry 1280x800 :%i
-ExecStop=/usr/bin/vncserver -kill :%i
+# テンプレートをコピーし、sedでプレースホルダーを実際の値に置換します
+sed -e "s|__USER__|${RUNNING_USER}|g" \
+    -e "s|__USER_HOME__|${USER_HOME}|g" \
+    "$SERVICE_TEMPLATE" > "$SERVICE_PATH"
 
-[Install]
-WantedBy=multi-user.target
-EOF
+echo "systemdサービスファイルを作成しました。"
+
 
 # --- 5. サービスの有効化と起動 ---
 echo -e "\n${GREEN}>>> ステップ5: VNCサービスを有効化し、起動しています...${NC}"
 systemctl daemon-reload
-# --now オプションで有効化と起動を同時に行う
 systemctl enable --now vncserver@1.service
 
 # --- 6. ファイアウォール(ufw)の設定 ---
 echo -e "\n${GREEN}>>> ステップ6: ファイアウォール (ufw) を設定しています...${NC}"
-# SSHを許可
 ufw allow ssh
-# ufwを有効化 (対話プロンプトを回避)
 echo "y" | ufw enable
 
 echo -e "\n${GREEN}===================================================${NC}"
@@ -106,6 +96,5 @@ echo -e "\n${YELLOW}2. VNCクライアントで接続:${NC}"
 echo -e "   接続先: ${GREEN}localhost:5901${NC}"
 echo -e "\n"
 
-# サービスのステータスを表示して最終確認
 echo "VNCサービスの稼働状態を確認します..."
 systemctl status vncserver@1.service
