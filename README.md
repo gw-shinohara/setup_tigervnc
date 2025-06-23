@@ -26,10 +26,10 @@
 
 ```bash
 # 1. リポジトリをクローン
-git clone [https://github.com/](https://github.com/)<あなたのGitHubユーザー名>/ubuntu-vnc-autorun.git
+git clone https://github.com/gw-shinohara/setup_tigervnc.git
 
 # 2. ディレクトリを移動
-cd ubuntu-vnc-autorun
+cd setup_tigervnc
 
 # 3. スクリプトに実行権限を付与
 chmod +x setup-vnc.sh
