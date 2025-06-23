@@ -64,10 +64,6 @@ SSHのパスワードを入力すると、トンネルがバックグラウン�
 
 **`localhost:5901`**
 
-<br>
-<img src="https://i.imgur.com/gfgA9s6.png" width="400" alt="VNC Viewer Connection">
-<br>
-
 その後、スクリプト実行中に設定したVNCパスワードを入力すると、リモートデスクトップが表示されます。
 
 ## 🔧 カスタマイズ
