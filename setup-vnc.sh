@@ -17,6 +17,9 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# --- スクリプト自身のディレクトリを取得 ---
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # --- sudoを実行したユーザー名を取得 ---
 RUNNING_USER="$SUDO_USER"
 if [ -z "$RUNNING_USER" ]; then
@@ -28,6 +31,7 @@ USER_HOME=$(getent passwd "$RUNNING_USER" | cut -d: -f6)
 echo -e "${GREEN}=== Ubuntu VNC 自動設定スクリプトを開始します ===${NC}"
 echo -e "実行ユーザー: ${YELLOW}${RUNNING_USER}${NC}"
 echo -e "ホームディレクトリ: ${YELLOW}${USER_HOME}${NC}"
+echo -e "スクリプトディレクトリ: ${YELLOW}${SCRIPT_DIR}${NC}"
 
 # --- 1. 必要なパッケージのインストール ---
 echo -e "\n${GREEN}>>> ステップ1: 必要なパッケージをインストールしています...${NC}"
@@ -43,7 +47,7 @@ su - "$RUNNING_USER" -c "vncpasswd"
 
 # --- 3. xstartupファイルの設定 ---
 echo -e "\n${GREEN}>>> ステップ3: VNC起動スクリプト (xstartup) を設定しています...${NC}"
-XSTARTUP_TEMPLATE="./templates/xstartup"
+XSTARTUP_TEMPLATE="${SCRIPT_DIR}/templates/xstartup"
 XSTARTUP_PATH="$USER_HOME/.vnc/xstartup"
 
 if [ ! -f "$XSTARTUP_TEMPLATE" ]; then
@@ -57,9 +61,9 @@ chown "$RUNNING_USER:$RUNNING_USER" "$XSTARTUP_PATH"
 echo "xstartupファイルをコピーしました。"
 
 
-# --- 4. Systemdサービスファイルの作成 ---
+# --- 4. Systemdサービスファイルの作成 (★修正★) ---
 echo -e "\n${GREEN}>>> ステップ4: Systemdサービスを作成して自動起動を設定しています...${NC}"
-SERVICE_TEMPLATE="./templates/vncserver@.service"
+SERVICE_TEMPLATE="${SCRIPT_DIR}/templates/vncserver@.service"
 SERVICE_PATH="/etc/systemd/system/vncserver@.service"
 
 if [ ! -f "$SERVICE_TEMPLATE" ]; then
@@ -67,12 +71,19 @@ if [ ! -f "$SERVICE_TEMPLATE" ]; then
     exit 1
 fi
 
-# テンプレートをコピーし、sedでプレースホルダーを実際の値に置換します
-sed -e "s|__USER__|${RUNNING_USER}|g" \
-    -e "s|__USER_HOME__|${USER_HOME}|g" \
-    "$SERVICE_TEMPLATE" > "$SERVICE_PATH"
-
+# 汎用テンプレートをそのままコピーする (sedによる置換は不要)
+cp "$SERVICE_TEMPLATE" "$SERVICE_PATH"
 echo "systemdサービスファイルを作成しました。"
+
+
+# --- 4.5. vncserver.users ファイルの作成 ---
+echo -e "\n${GREEN}>>> ステップ4.5: TigerVNCユーザーマッピングファイルを作成しています...${NC}"
+mkdir -p /etc/tigervnc
+echo ":1 = ${RUNNING_USER}" > /etc/tigervnc/vncserver.users
+echo "ファイルを作成しました: /etc/tigervnc/vncserver.users"
+echo -e "${YELLOW}---------------------------------------------------"
+cat "/etc/tigervnc/vncserver.users"
+echo -e "---------------------------------------------------${NC}"
 
 
 # --- 5. サービスの有効化と起動 ---
