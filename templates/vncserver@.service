@@ -1,16 +1,14 @@
 [Unit]
-Description=Start TigerVNC server at startup
+Description=TigerVNC-based VNC server for display
 After=syslog.target network.target
 
 [Service]
-Type=forking
-User=<USER>
-Group=<USER>
-WorkingDirectory=/home/<USER>
-
-PIDFile=/home/<USER>/.vnc/%H:%i.pid
+Type=simple
+# Clean up any old VNC sockets
 ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
-ExecStart=/usr/bin/vncserver -depth 24 -geometry 1280x800 :%i
+# Start the VNC server in foreground, which will determine the user from /etc/tigervnc/vncserver.users
+ExecStart=/usr/bin/vncserver -fg -localhost -depth 24 -geometry 1280x800 :%i
+# Stop the VNC server
 ExecStop=/usr/bin/vncserver -kill :%i
 
 [Install]
