@@ -61,7 +61,7 @@ chown "$RUNNING_USER:$RUNNING_USER" "$XSTARTUP_PATH"
 echo "xstartupファイルをコピーしました。"
 
 
-# --- 4. Systemdサービスファイルの作成 (★修正★) ---
+# --- 4. Systemdサービスファイルの作成 ---
 echo -e "\n${GREEN}>>> ステップ4: Systemdサービスを作成して自動起動を設定しています...${NC}"
 SERVICE_TEMPLATE="${SCRIPT_DIR}/templates/vncserver@.service"
 SERVICE_PATH="/etc/systemd/system/vncserver@.service"
@@ -71,14 +71,18 @@ if [ ! -f "$SERVICE_TEMPLATE" ]; then
     exit 1
 fi
 
-# 汎用テンプレートをそのままコピーする (sedによる置換は不要)
-cp "$SERVICE_TEMPLATE" "$SERVICE_PATH"
+sed -e "s|__USER__|${RUNNING_USER}|g" \
+    -e "s|__USER_HOME__|${USER_HOME}|g" \
+    "$SERVICE_TEMPLATE" > "$SERVICE_PATH"
+
 echo "systemdサービスファイルを作成しました。"
 
 
-# --- 4.5. vncserver.users ファイルの作成 ---
+# --- 4.5. vncserver.users ファイルの作成 (★新規追加★) ---
 echo -e "\n${GREEN}>>> ステップ4.5: TigerVNCユーザーマッピングファイルを作成しています...${NC}"
+# ディレクトリが存在しない場合に作成
 mkdir -p /etc/tigervnc
+# ファイルを作成し、ディスプレイ番号とユーザーをマッピング
 echo ":1 = ${RUNNING_USER}" > /etc/tigervnc/vncserver.users
 echo "ファイルを作成しました: /etc/tigervnc/vncserver.users"
 echo -e "${YELLOW}---------------------------------------------------"
