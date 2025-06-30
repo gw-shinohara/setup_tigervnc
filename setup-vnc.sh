@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Ubuntu VNC Auto-Setup Script
+# Ubuntu VNC Auto-Setup Script (with OpenSSH Server)
 #
 # このスクリプトはroot権限で実行する必要があります。
 # This script must be run as root.
@@ -36,7 +36,15 @@ echo -e "スクリプトディレクトリ: ${YELLOW}${SCRIPT_DIR}${NC}"
 # --- 1. 必要なパッケージのインストール ---
 echo -e "\n${GREEN}>>> ステップ1: 必要なパッケージをインストールしています...${NC}"
 apt-get update
-apt-get install -y xfce4 xfce4-goodies tigervnc-standalone-server ufw
+# ★ openssh-server をインストール対象に追加 ★
+apt-get install -y openssh-server xfce4 xfce4-goodies tigervnc-standalone-server ufw
+
+# --- 1.5. SSHサーバーの起動と有効化 (★新規追加★) ---
+echo -e "\n${GREEN}>>> ステップ1.5: SSHサーバーを起動・有効化しています...${NC}"
+systemctl enable --now ssh
+echo "SSHサービスの稼働状態:"
+systemctl status ssh --no-pager
+# --no-pager はステータス表示が画面を占有しないようにするため
 
 # --- 2. VNCパスワードの設定 ---
 echo -e "\n${GREEN}>>> ステップ2: VNCパスワードを設定します...${NC}"
@@ -78,7 +86,7 @@ sed -e "s|__USER__|${RUNNING_USER}|g" \
 echo "systemdサービスファイルを作成しました。"
 
 
-# --- 4.5. vncserver.users ファイルの作成 (★新規追加★) ---
+# --- 4.5. vncserver.users ファイルの作成 ---
 echo -e "\n${GREEN}>>> ステップ4.5: TigerVNCユーザーマッピングファイルを作成しています...${NC}"
 # ディレクトリが存在しない場合に作成
 mkdir -p /etc/tigervnc
@@ -90,7 +98,7 @@ cat "/etc/tigervnc/vncserver.users"
 echo -e "---------------------------------------------------${NC}"
 
 
-# --- 5. サービスの有効化と起動 ---
+# --- 5. VNCサービスの有効化と起動 ---
 echo -e "\n${GREEN}>>> ステップ5: VNCサービスを有効化し、起動しています...${NC}"
 systemctl daemon-reload
 systemctl enable --now vncserver@1.service
@@ -98,10 +106,14 @@ systemctl enable --now vncserver@1.service
 # --- 6. ファイアウォール(ufw)の設定 ---
 echo -e "\n${GREEN}>>> ステップ6: ファイアウォール (ufw) を設定しています...${NC}"
 ufw allow ssh
+# ★ VNC接続用のポート5901も許可（トンネルが使えない場合のフォールバック）★
+# ufw allow 5901
 echo "y" | ufw enable
+echo "ファイアウォールの状態:"
+ufw status
 
 echo -e "\n${GREEN}===================================================${NC}"
-echo -e "${GREEN}         🎉 セットアップが完了しました！ 🎉          ${NC}"
+echo -e "${GREEN}        🎉 セットアップが完了しました！ 🎉        ${NC}"
 echo -e "${GREEN}===================================================${NC}"
 echo -e "\n次に、お手元のPCから以下の手順で接続してください。"
 echo -e "詳細は ${YELLOW}README.md${NC} を参照してください。"
@@ -112,4 +124,4 @@ echo -e "   接続先: ${GREEN}localhost:5901${NC}"
 echo -e "\n"
 
 echo "VNCサービスの稼働状態を確認します..."
-systemctl status vncserver@1.service
+systemctl status vncserver@1.service --no-pager
